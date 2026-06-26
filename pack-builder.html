@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pack Builder — The Keys of Revelation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════════════
+       THE KEYS OF REVELATION — pack-builder.html
+       Standalone pack creation tool.
+       Signed: Maridizzle
+    ═══════════════════════════════════════════════════════ */
+
+    :root {
+      --bg:           #0a0a0a;
+      --surface:      #111111;
+      --border-dim:   #3d0000;
+      --border-mid:   #660000;
+      --accent:       #cc0000;
+      --glow:         #ff2020;
+      --glow-soft:    rgba(255, 32, 32, 0.25);
+      --text-primary: #f5f5f5;
+      --text-secondary: #888888;
+      --text-accent:  #ff6666;
+      --error:        #ff4444;
+      --success:      #55ffaa;
+      --font-display: 'Orbitron', 'Arial Black', sans-serif;
+      --font-body:    'Segoe UI', Arial, sans-serif;
+      --font-mono:    'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 64px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 52px;
+    }
+
+    .header-eyebrow {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      letter-spacing: 0.45em;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    .header-title {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: 0.35em;
+      color: var(--text-primary);
+      text-shadow:
+        0 0 8px var(--glow),
+        0 0 28px rgba(255, 32, 32, 0.4),
+        0 0 60px rgba(255, 32, 32, 0.15);
+    }
+
+    .header-sub {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.12em;
+      margin-top: 10px;
+    }
+
+    /* ── Container ────────────────────────────────────── */
+    .container {
+      width: 100%;
+      max-width: 780px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    /* ── Drop Zones ───────────────────────────────────── */
+    .drop-zones {
+      display: flex;
+      gap: 16px;
+    }
+
+    .drop-zone {
+      flex: 1;
+      background: var(--surface);
+      border: 1px dashed var(--border-mid);
+      border-radius: 2px;
+      padding: 36px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      text-align: center;
+      position: relative;
+      min-height: 160px;
+      justify-content: center;
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      box-shadow: 0 0 18px var(--glow-soft);
+    }
+
+    .drop-zone.has-file {
+      border-style: solid;
+      border-color: var(--border-mid);
+    }
+
+    .drop-zone.has-file:hover {
+      border-color: var(--accent);
+    }
+
+    .drop-zone__step {
+      font-family: var(--font-display);
+      font-size: 0.58rem;
+      letter-spacing: 0.35em;
+      color: var(--border-mid);
+    }
+
+    .drop-zone__type {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--text-primary);
+    }
+
+    .drop-zone__hint {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .drop-zone__filename {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-accent);
+      word-break: break-all;
+      display: none;
+      padding: 0 8px;
+    }
+
+    .drop-zone__check {
+      font-family: var(--font-display);
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      color: var(--success);
+      display: none;
+    }
+
+    .drop-zone.has-file .drop-zone__filename { display: block; }
+    .drop-zone.has-file .drop-zone__check    { display: block; }
+    .drop-zone.has-file .drop-zone__hint     { display: none; }
+
+    /* ── Divider ──────────────────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border-dim);
+    }
+
+    /* ── Fields ───────────────────────────────────────── */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field label {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      letter-spacing: 0.28em;
+      color: var(--text-secondary);
+    }
+
+    .field input {
+      background: var(--surface);
+      border: 1px solid var(--border-dim);
+      border-radius: 2px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      padding: 10px 14px;
+      width: 100%;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .field input::placeholder {
+      color: var(--border-mid);
+    }
+
+    .field input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 14px rgba(204, 0, 0, 0.2);
+    }
+
+    /* ── Build Button ─────────────────────────────────── */
+    .build-btn {
+      width: 100%;
+      padding: 16px 40px;
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      border: 1px solid var(--accent);
+      border-radius: 2px;
+      background: rgba(204, 0, 0, 0.08);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .build-btn:hover:not(:disabled) {
+      border-color: var(--glow);
+      background: rgba(255, 32, 32, 0.14);
+      box-shadow: 0 0 22px var(--glow-soft);
+    }
+
+    .build-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* ── Status ───────────────────────────────────────── */
+    .status {
+      text-align: center;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      min-height: 24px;
+      padding: 4px 0;
+    }
+
+    .status--error   { color: var(--error); }
+    .status--success { color: var(--success); }
+    .status--idle    { color: transparent; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-eyebrow">THE KEYS OF REVELATION</div>
+    <h1 class="header-title">PACK BUILDER</h1>
+    <p class="header-sub">Drop your MimiPanda exports, name your pack, download the zip.</p>
+  </div>
+
+  <div class="container">
+
+    <!-- File drop zones -->
+    <div class="drop-zones">
+
+      <div class="drop-zone" id="zone-svg">
+        <input type="file" id="input-svg" accept="*/*">
+        <div class="drop-zone__step">STEP 1</div>
+        <div class="drop-zone__type">IMAGE FILE</div>
+        <div class="drop-zone__hint">Drop or click to select your MimiPanda SVG export (any extension)</div>
+        <div class="drop-zone__filename" id="fname-svg"></div>
+        <div class="drop-zone__check">LOADED</div>
+      </div>
+
+      <div class="drop-zone" id="zone-csv">
+        <input type="file" id="input-csv" accept="*/*">
+        <div class="drop-zone__step">STEP 2</div>
+        <div class="drop-zone__type">COLORS FILE</div>
+        <div class="drop-zone__hint">Drop or click to select your MimiPanda CSV color export</div>
+        <div class="drop-zone__filename" id="fname-csv"></div>
+        <div class="drop-zone__check">LOADED</div>
+      </div>
+
+    </div>
+
+    <hr class="divider">
+
+    <!-- Pack name -->
+    <div class="field">
+      <label for="pack-name">PACK NAME</label>
+      <input
+        type="text"
+        id="pack-name"
+        placeholder="e.g. Forest at Dusk"
+        maxlength="80"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+
+    <!-- Description -->
+    <div class="field">
+      <label for="pack-desc">DESCRIPTION &nbsp;(optional)</label>
+      <input
+        type="text"
+        id="pack-desc"
+        placeholder="e.g. A peaceful woodland scene at golden hour"
+        maxlength="160"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+
+    <hr class="divider">
+
+    <button class="build-btn" id="build-btn">BUILD PACK</button>
+
+    <div class="status status--idle" id="status">&nbsp;</div>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    /* ═══════════════════════════════════════════════════════
+       Pack Builder Logic
+       Signed: Maridizzle
+    ═══════════════════════════════════════════════════════ */
+
+    var svgFile = null;
+    var csvFile = null;
+
+    /* ── Status helpers ─────────────────────────────────── */
+    function setStatus(msg, type) {
+      var el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status status--' + type;
+    }
+
+    function clearStatus() {
+      var el = document.getElementById('status');
+      el.textContent = '\u00a0';
+      el.className = 'status status--idle';
+    }
+
+    /* ── Drop zone setup ────────────────────────────────── */
+    function setupZone(zoneId, inputId, fnameId, role) {
+      var zone  = document.getElementById(zoneId);
+      var input = document.getElementById(inputId);
+      var fname = document.getElementById(fnameId);
+
+      function onFile(file) {
+        if (role === 'svg') svgFile = file;
+        if (role === 'csv') csvFile = file;
+        fname.textContent = file.name;
+        zone.classList.add('has-file');
+        clearStatus();
+      }
+
+      input.addEventListener('change', function() {
+        if (input.files && input.files[0]) onFile(input.files[0]);
+      });
+
+      zone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        zone.classList.add('drag-over');
+      });
+
+      zone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+      });
+
+      zone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          onFile(e.dataTransfer.files[0]);
+        }
+      });
+    }
+
+    setupZone('zone-svg', 'input-svg', 'fname-svg', 'svg');
+    setupZone('zone-csv', 'input-csv', 'fname-csv', 'csv');
+
+    /* ── Build ──────────────────────────────────────────── */
+    document.getElementById('build-btn').addEventListener('click', function() {
+      clearStatus();
+
+      var name = document.getElementById('pack-name').value.trim();
+      var desc = document.getElementById('pack-desc').value.trim();
+
+      if (!svgFile) {
+        setStatus('Select your image file first.', 'error');
+        return;
+      }
+      if (!csvFile) {
+        setStatus('Select your colors CSV file.', 'error');
+        return;
+      }
+      if (!name) {
+        setStatus('Pack name is required.', 'error');
+        return;
+      }
+
+      var btn = document.getElementById('build-btn');
+      btn.disabled = true;
+      setStatus('Building...', 'idle');
+
+      var manifest = {
+        name:        name,
+        description: desc,
+        svg:         svgFile.name,
+        colors:      csvFile.name,
+        wordlist:    'default'
+      };
+
+      function readAsBuffer(file) {
+        return new Promise(function(resolve, reject) {
+          var reader = new FileReader();
+          reader.onload  = function(e) { resolve(e.target.result); };
+          reader.onerror = function()  { reject(new Error('Could not read ' + file.name)); };
+          reader.readAsArrayBuffer(file);
+        });
+      }
+
+      Promise.all([readAsBuffer(svgFile), readAsBuffer(csvFile)]).then(function(buffers) {
+        var zip = new JSZip();
+        zip.file('pack.json', JSON.stringify(manifest, null, 2));
+        zip.file(svgFile.name,  buffers[0]);
+        zip.file(csvFile.name,  buffers[1]);
+        return zip.generateAsync({ type: 'blob' });
+
+      }).then(function(blob) {
+        var safeName = name.replace(/[^a-z0-9_\-]/gi, '_').toLowerCase();
+        var url = URL.createObjectURL(blob);
+        var a   = document.createElement('a');
+        a.href     = url;
+        a.download = safeName + '.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+
+        setStatus('Pack ready: ' + safeName + '.zip', 'success');
+        btn.disabled = false;
+
+      }).catch(function(e) {
+        setStatus('Error: ' + e.message, 'error');
+        btn.disabled = false;
+      });
+    });
+  </script>
+</body>
+</html>

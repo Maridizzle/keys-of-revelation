@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Keys of Revelation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: MAIN MENU
+  ═══════════════════════════════════════════ -->
+  <div class="screen screen--active" id="screen-menu">
+    <div class="menu-wrap">
+      <div class="menu-title-block">
+        <h1 class="title-glow">
+          <span class="title-line-1">THE KEYS OF</span>
+          <span class="title-line-2">REVELATION</span>
+        </h1>
+        <p class="menu-subtitle">train your fingers &nbsp;/&nbsp; paint your world</p>
+      </div>
+      <nav class="menu-nav">
+        <button class="btn btn--primary btn--lg" data-goto="screen-modes">PLAY</button>
+        <button class="btn btn--secondary btn--lg" data-goto="screen-packs">PACKS</button>
+        <button class="btn btn--secondary btn--lg" data-goto="screen-history">HISTORY</button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: PACK MANAGER
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-packs">
+    <div class="screen-header">
+      <button class="btn btn--ghost" data-goto="screen-menu">&#8592; BACK</button>
+      <h2 class="screen-title">PACK MANAGER</h2>
+      <div></div>
+    </div>
+    <div class="pack-manager">
+      <div class="pack-import-zone">
+        <label class="btn btn--primary btn--lg pack-import-label">
+          IMPORT PACK (.zip)
+          <input type="file" accept=".zip" hidden id="pack-file-input">
+        </label>
+        <p class="pack-hint">Pack must contain: image.svg &nbsp;/&nbsp; colors.csv &nbsp;/&nbsp; pack.json</p>
+        <div id="pack-import-error" class="pack-error" style="display:none;"></div>
+      </div>
+      <div class="pack-list" id="pack-list">
+        <div class="pack-empty">No packs installed yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: MODE SELECT
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-modes">
+    <div class="screen-header">
+      <button class="btn btn--ghost" data-goto="screen-menu">&#8592; BACK</button>
+      <h2 class="screen-title">SELECT MODE</h2>
+      <div></div>
+    </div>
+    <div class="mode-grid">
+      <div class="mode-card" data-mode="picture" data-goto="screen-difficulty">
+        <h3 class="mode-card__title">PICTURE</h3>
+        <p class="mode-card__desc">Type words to fill a hidden image with color. Every 2 words unlocks the next color zone. Full stats tracked and reported.</p>
+        <span class="mode-card__tag">WPM &nbsp;/&nbsp; ACCURACY &nbsp;/&nbsp; STREAK &nbsp;/&nbsp; REPORT</span>
+      </div>
+      <div class="mode-card" data-mode="speed" data-goto="screen-speed-setup">
+        <h3 class="mode-card__title">SPEED</h3>
+        <p class="mode-card__desc">Race against the clock. Pure words per minute. No mercy, no distractions.</p>
+        <span class="mode-card__tag">TIMED &nbsp;/&nbsp; WPM FOCUSED</span>
+      </div>
+      <div class="mode-card" data-mode="precision" data-goto="screen-difficulty">
+        <h3 class="mode-card__title">PRECISION</h3>
+        <p class="mode-card__desc">Every error costs you. Type clean or watch your score collapse in real time.</p>
+        <span class="mode-card__tag">ACCURACY FOCUSED &nbsp;/&nbsp; PUNISHING</span>
+      </div>
+      <div class="mode-card" data-mode="zen" data-goto="screen-difficulty">
+        <h3 class="mode-card__title">ZEN</h3>
+        <p class="mode-card__desc">No timer. No pressure. Just you, the words, and the silence.</p>
+        <span class="mode-card__tag">UNRANKED &nbsp;/&nbsp; FREEFORM</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: SPEED SETUP
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-speed-setup">
+    <div class="screen-header">
+      <button class="btn btn--ghost" data-goto="screen-modes">&#8592; BACK</button>
+      <h2 class="screen-title">SPEED MODE</h2>
+      <div></div>
+    </div>
+    <div class="difficulty-wrap">
+      <p class="difficulty-prompt">SELECT DURATION</p>
+      <div class="difficulty-grid">
+        <div class="setup-duration-card" data-duration="60">
+          <div class="setup-duration__num">1</div>
+          <div class="setup-duration__unit">MINUTE</div>
+        </div>
+        <div class="setup-duration-card" data-duration="180">
+          <div class="setup-duration__num">3</div>
+          <div class="setup-duration__unit">MINUTES</div>
+        </div>
+        <div class="setup-duration-card" data-duration="300">
+          <div class="setup-duration__num">5</div>
+          <div class="setup-duration__unit">MINUTES</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: DIFFICULTY SELECT
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-difficulty">
+    <div class="screen-header">
+      <button class="btn btn--ghost" data-goto="screen-modes">&#8592; BACK</button>
+      <h2 class="screen-title">PICTURE MODE</h2>
+      <div></div>
+    </div>
+    <div class="difficulty-wrap">
+      <p class="difficulty-prompt">SELECT A WORD LIST</p>
+      <div class="difficulty-grid" id="difficulty-grid"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: PICTURE MODE
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-picture">
+    <div class="picture-layout">
+
+      <!-- Left stat panel -->
+      <aside class="stat-panel stat-panel--left">
+        <div class="stat-block">
+          <div class="stat-value" id="stat-timer">0:00</div>
+          <div class="stat-label">TIME</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-value" id="stat-score">0</div>
+          <div class="stat-label">SCORE</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-value" id="stat-wpm">0</div>
+          <div class="stat-label">WPM</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-value" id="stat-streak">0</div>
+          <div class="stat-label">STREAK</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-value" id="stat-words">0</div>
+          <div class="stat-label">WORDS</div>
+        </div>
+      </aside>
+
+      <!-- Center: SVG canvas + typing area -->
+      <main class="game-center">
+        <div class="svg-canvas" id="svg-canvas">
+          <div class="canvas-empty">
+            <p>No pack loaded.</p>
+            <button class="btn btn--secondary" data-goto="screen-packs">GO TO PACKS</button>
+          </div>
+        </div>
+        <div class="typing-area">
+          <div class="word-display" id="word-display">- - -</div>
+          <input
+            type="text"
+            class="typing-input"
+            id="typing-input"
+            placeholder="start typing..."
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+          >
+        </div>
+      </main>
+
+      <!-- Right stat panel -->
+      <aside class="stat-panel stat-panel--right">
+        <div class="stat-block">
+          <div class="stat-value" id="stat-accuracy">100%</div>
+          <div class="stat-label">ACCURACY</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-value" id="stat-errors">0</div>
+          <div class="stat-label">ERRORS</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-value" id="stat-colors">0</div>
+          <div class="stat-label">COLORS</div>
+        </div>
+      </aside>
+
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="game-bottom-bar">
+      <button class="btn btn--ghost btn--sm" onclick="Game.quit()">QUIT</button>
+      <span class="bottom-pack-name" id="pack-name-display">No pack loaded</span>
+      <span class="bottom-color-progress" id="color-progress">0 / 0 colors</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: HISTORY
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-history">
+    <div class="screen-header">
+      <button class="btn btn--ghost" data-goto="screen-menu">&#8592; BACK</button>
+      <h2 class="screen-title">SESSION HISTORY</h2>
+      <div></div>
+    </div>
+    <div class="history-wrap">
+      <div id="history-content"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: SPEED MODE (placeholder)
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-speed">
+    <div class="screen-header">
+      <button class="btn btn--ghost" data-goto="screen-modes">&#8592; BACK</button>
+      <h2 class="screen-title">SPEED MODE</h2>
+      <div></div>
+    </div>
+    <div class="placeholder-content">
+      <span class="placeholder-label">COMING IN PHASE 6</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: PRECISION MODE (placeholder)
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-precision">
+    <div class="screen-header">
+      <button class="btn btn--ghost" data-goto="screen-modes">&#8592; BACK</button>
+      <h2 class="screen-title">PRECISION MODE</h2>
+      <div></div>
+    </div>
+    <div class="placeholder-content">
+      <span class="placeholder-label">COMING IN PHASE 6</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: ZEN MODE (placeholder)
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-zen">
+    <div class="screen-header">
+      <button class="btn btn--ghost" data-goto="screen-modes">&#8592; BACK</button>
+      <h2 class="screen-title">ZEN MODE</h2>
+      <div></div>
+    </div>
+    <div class="placeholder-content">
+      <span class="placeholder-label">COMING IN PHASE 6</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: COMPLETE
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-complete">
+    <div class="complete-wrap">
+      <div class="complete-header">
+        <div class="complete-label">IMAGE COMPLETE</div>
+        <div class="complete-pack-name" id="complete-pack-name"></div>
+      </div>
+      <div class="complete-svg-container" id="complete-svg-container"></div>
+      <div class="complete-actions">
+        <button class="btn btn--primary btn--lg" data-goto="screen-report">SEE REPORT</button>
+        <button class="btn btn--secondary btn--lg" data-goto="screen-difficulty">PLAY AGAIN</button>
+        <button class="btn btn--secondary btn--lg" data-goto="screen-menu">MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SCREEN: SESSION REPORT (placeholder)
+  ═══════════════════════════════════════════ -->
+  <div class="screen" id="screen-report">
+    <div class="screen-header">
+      <div></div>
+      <h2 class="screen-title">SESSION REPORT</h2>
+      <div></div>
+    </div>
+    <div class="report-container">
+
+      <!-- Session stats -->
+      <div class="report-section">
+        <div class="report-section__title">THIS SESSION</div>
+        <div class="report-grid" id="report-session-grid"></div>
+      </div>
+
+      <!-- Personal bests -->
+      <div class="report-section">
+        <div class="report-section__title">PERSONAL BESTS</div>
+        <div class="report-grid" id="report-bests-grid"></div>
+      </div>
+
+      <!-- Export + navigation -->
+      <div class="report-actions">
+        <button class="btn btn--primary" id="export-txt-btn">EXPORT .TXT</button>
+        <button class="btn btn--primary" id="export-csv-btn">EXPORT .CSV</button>
+        <button class="btn btn--secondary" data-goto="screen-difficulty">PLAY AGAIN</button>
+        <button class="btn btn--secondary" data-goto="screen-menu">MAIN MENU</button>
+      </div>
+
+      <div class="report-status" id="report-status"></div>
+
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/wordlists.js"></script>
+  <script src="js/pack-manager.js"></script>
+  <script src="js/svg-engine.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/report.js"></script>
+</body>
+</html>

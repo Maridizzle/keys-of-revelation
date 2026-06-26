@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word List Builder — The Keys of Revelation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════════════
+       THE KEYS OF REVELATION — wordlist-builder.html
+       Standalone tool: formats raw word lists into wordlists.js
+       Signed: Maridizzle
+    ═══════════════════════════════════════════════════════ */
+
+    :root {
+      --bg:             #0a0a0a;
+      --surface:        #111111;
+      --surface-2:      #161616;
+      --border-dim:     #3d0000;
+      --border-mid:     #660000;
+      --accent:         #cc0000;
+      --glow:           #ff2020;
+      --glow-soft:      rgba(255, 32, 32, 0.25);
+      --text-primary:   #f5f5f5;
+      --text-secondary: #888888;
+      --text-accent:    #ff6666;
+      --error:          #ff4444;
+      --success:        #55ffaa;
+      --font-display:   'Orbitron', 'Arial Black', sans-serif;
+      --font-body:      'Segoe UI', Arial, sans-serif;
+      --font-mono:      'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 64px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .header-eyebrow {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      letter-spacing: 0.45em;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    .header-title {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 0.35em;
+      color: var(--text-primary);
+      text-shadow:
+        0 0 8px var(--glow),
+        0 0 28px rgba(255, 32, 32, 0.4),
+        0 0 60px rgba(255, 32, 32, 0.15);
+    }
+
+    .header-sub {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.1em;
+      margin-top: 10px;
+      line-height: 1.6;
+    }
+
+    /* ── Container ────────────────────────────────────── */
+    .container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── List Grid ────────────────────────────────────── */
+    .list-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .list-panel {
+      flex: 1 1 calc(50% - 8px);
+      min-width: 300px;
+      background: var(--surface);
+      border: 1px solid var(--border-dim);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .list-panel__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-dim);
+      gap: 10px;
+    }
+
+    .list-panel__name {
+      font-family: var(--font-display);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border-dim);
+      color: var(--text-primary);
+      padding: 2px 4px;
+      width: 120px;
+      transition: border-color 0.15s;
+    }
+
+    .list-panel__name:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .list-panel__count {
+      font-family: var(--font-display);
+      font-size: 0.58rem;
+      letter-spacing: 0.15em;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .list-panel__count span {
+      color: var(--text-accent);
+    }
+
+    .list-panel textarea {
+      flex: 1;
+      min-height: 220px;
+      background: var(--surface-2);
+      border: none;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding: 14px;
+      resize: vertical;
+      line-height: 1.6;
+      transition: box-shadow 0.15s;
+    }
+
+    .list-panel textarea:focus {
+      outline: none;
+      box-shadow: inset 0 0 12px rgba(204, 0, 0, 0.08);
+    }
+
+    .list-panel textarea::placeholder {
+      color: var(--border-mid);
+    }
+
+    /* ── Divider ──────────────────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border-dim);
+    }
+
+    /* ── Options Row ──────────────────────────────────── */
+    .options-row {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .option input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+
+    .option label {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.08em;
+      cursor: pointer;
+    }
+
+    /* ── Build Button ─────────────────────────────────── */
+    .build-btn {
+      width: 100%;
+      padding: 16px 40px;
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      border: 1px solid var(--accent);
+      border-radius: 2px;
+      background: rgba(204, 0, 0, 0.08);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .build-btn:hover:not(:disabled) {
+      border-color: var(--glow);
+      background: rgba(255, 32, 32, 0.14);
+      box-shadow: 0 0 22px var(--glow-soft);
+    }
+
+    .build-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* ── Output ───────────────────────────────────────── */
+    .output-block {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .output-block.visible {
+      display: flex;
+    }
+
+    .output-label {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      letter-spacing: 0.28em;
+      color: var(--text-secondary);
+    }
+
+    .output-code {
+      background: var(--surface);
+      border: 1px solid var(--border-dim);
+      border-radius: 2px;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-accent);
+      white-space: pre;
+      overflow-x: auto;
+      max-height: 260px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+
+    .output-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Buttons shared ───────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 24px;
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      border: 1px solid transparent;
+      border-radius: 2px;
+      background: transparent;
+      cursor: pointer;
+      transition: box-shadow 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .btn--primary {
+      border-color: var(--accent);
+      color: var(--text-primary);
+      background: rgba(204, 0, 0, 0.08);
+    }
+
+    .btn--primary:hover {
+      border-color: var(--glow);
+      background: rgba(255, 32, 32, 0.14);
+      box-shadow: 0 0 14px var(--glow-soft);
+    }
+
+    .btn--secondary {
+      border-color: var(--border-mid);
+      color: var(--text-secondary);
+    }
+
+    .btn--secondary:hover {
+      border-color: var(--text-secondary);
+      color: var(--text-primary);
+    }
+
+    /* ── Status ───────────────────────────────────────── */
+    .status {
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      min-height: 20px;
+      text-align: center;
+    }
+
+    .status--error   { color: var(--error); }
+    .status--success { color: var(--success); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-eyebrow">THE KEYS OF REVELATION</div>
+    <h1 class="header-title">WORD LIST BUILDER</h1>
+    <p class="header-sub">
+      Paste your word lists below (one word per line, or space/comma separated).<br>
+      Duplicates and blanks are removed automatically.
+    </p>
+  </div>
+
+  <div class="container">
+
+    <!-- Four list input panels -->
+    <div class="list-grid" id="list-grid">
+
+      <div class="list-panel">
+        <div class="list-panel__header">
+          <input type="text" class="list-panel__name" value="easy" placeholder="list name">
+          <div class="list-panel__count">WORDS: <span id="count-0">0</span></div>
+        </div>
+        <textarea class="list-input" data-index="0" placeholder="one word per line&#10;or space or comma separated"></textarea>
+      </div>
+
+      <div class="list-panel">
+        <div class="list-panel__header">
+          <input type="text" class="list-panel__name" value="medium" placeholder="list name">
+          <div class="list-panel__count">WORDS: <span id="count-1">0</span></div>
+        </div>
+        <textarea class="list-input" data-index="1" placeholder="one word per line&#10;or space or comma separated"></textarea>
+      </div>
+
+      <div class="list-panel">
+        <div class="list-panel__header">
+          <input type="text" class="list-panel__name" value="hard" placeholder="list name">
+          <div class="list-panel__count">WORDS: <span id="count-2">0</span></div>
+        </div>
+        <textarea class="list-input" data-index="2" placeholder="one word per line&#10;or space or comma separated"></textarea>
+      </div>
+
+      <div class="list-panel">
+        <div class="list-panel__header">
+          <input type="text" class="list-panel__name" value="art" placeholder="list name">
+          <div class="list-panel__count">WORDS: <span id="count-3">0</span></div>
+        </div>
+        <textarea class="list-input" data-index="3" placeholder="one word per line&#10;or space or comma separated"></textarea>
+      </div>
+
+    </div>
+
+    <hr class="divider">
+
+    <!-- Options -->
+    <div class="options-row">
+      <div class="option">
+        <input type="checkbox" id="opt-lowercase" checked>
+        <label for="opt-lowercase">Lowercase all words</label>
+      </div>
+      <div class="option">
+        <input type="checkbox" id="opt-dedup" checked>
+        <label for="opt-dedup">Remove duplicates</label>
+      </div>
+      <div class="option">
+        <input type="checkbox" id="opt-sort">
+        <label for="opt-sort">Sort alphabetically</label>
+      </div>
+      <div class="option">
+        <input type="checkbox" id="opt-strip">
+        <label for="opt-strip">Strip non-alpha characters</label>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <button class="build-btn" id="build-btn">GENERATE wordlists.js</button>
+
+    <div class="status" id="status"></div>
+
+    <!-- Output -->
+    <div class="output-block" id="output-block">
+      <div class="output-label">OUTPUT — copy this into js/wordlists.js</div>
+      <div class="output-code" id="output-code"></div>
+      <div class="output-actions">
+        <button class="btn btn--primary" id="copy-btn">COPY TO CLIPBOARD</button>
+        <button class="btn btn--secondary" id="download-btn">DOWNLOAD wordlists.js</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /* ═══════════════════════════════════════════════════════
+       Word List Builder Logic
+       Signed: Maridizzle
+    ═══════════════════════════════════════════════════════ */
+
+    /* ── Live word count ──────────────────────────────── */
+    var textareas = document.querySelectorAll('.list-input');
+    for (var i = 0; i < textareas.length; i++) {
+      (function(ta, idx) {
+        ta.addEventListener('input', function() {
+          updateCount(ta.value, idx);
+        });
+      })(textareas[i], i);
+    }
+
+    function parseWords(raw, opts) {
+      if (!raw.trim()) return [];
+
+      /* Split on newlines, commas, or spaces */
+      var words = raw.split(/[\n,\s]+/);
+
+      words = words.filter(function(w) { return w.length > 0; });
+
+      if (opts.strip) {
+        words = words.map(function(w) { return w.replace(/[^a-zA-Z'-]/g, ''); });
+        words = words.filter(function(w) { return w.length > 0; });
+      }
+
+      if (opts.lowercase) {
+        words = words.map(function(w) { return w.toLowerCase(); });
+      }
+
+      if (opts.dedup) {
+        var seen = {};
+        words = words.filter(function(w) {
+          var key = w.toLowerCase();
+          if (seen[key]) return false;
+          seen[key] = true;
+          return true;
+        });
+      }
+
+      if (opts.sort) {
+        words.sort();
+      }
+
+      return words;
+    }
+
+    function updateCount(raw, idx) {
+      var opts = getOpts();
+      var words = parseWords(raw, opts);
+      var countEl = document.getElementById('count-' + idx);
+      if (countEl) countEl.textContent = words.length;
+    }
+
+    function getOpts() {
+      return {
+        lowercase: document.getElementById('opt-lowercase').checked,
+        dedup:     document.getElementById('opt-dedup').checked,
+        sort:      document.getElementById('opt-sort').checked,
+        strip:     document.getElementById('opt-strip').checked
+      };
+    }
+
+    /* Update counts when options change */
+    var optCheckboxes = document.querySelectorAll('.options-row input[type="checkbox"]');
+    for (var j = 0; j < optCheckboxes.length; j++) {
+      optCheckboxes[j].addEventListener('change', function() {
+        var tas = document.querySelectorAll('.list-input');
+        for (var k = 0; k < tas.length; k++) {
+          updateCount(tas[k].value, parseInt(tas[k].getAttribute('data-index'), 10));
+        }
+      });
+    }
+
+    /* ── Build ────────────────────────────────────────── */
+    document.getElementById('build-btn').addEventListener('click', function() {
+      var opts      = getOpts();
+      var nameInputs = document.querySelectorAll('.list-panel__name');
+      var listTAs   = document.querySelectorAll('.list-input');
+      var hasWords  = false;
+      var lines     = [];
+
+      lines.push('/* ═══════════════════════════════════════════════════════');
+      lines.push('   THE KEYS OF REVELATION — wordlists.js');
+      lines.push('   Generated by Word List Builder.');
+      lines.push('   Signed: Maridizzle');
+      lines.push('═══════════════════════════════════════════════════════ */');
+      lines.push('');
+      lines.push('var WORD_LISTS = {');
+
+      for (var i = 0; i < listTAs.length; i++) {
+        var name  = nameInputs[i].value.trim().replace(/[^a-z0-9_]/gi, '_') || ('list' + (i + 1));
+        var words = parseWords(listTAs[i].value, opts);
+
+        if (words.length > 0) hasWords = true;
+
+        /* Format array -- 8 words per line for readability */
+        var chunks = [];
+        for (var w = 0; w < words.length; w += 8) {
+          var slice = words.slice(w, w + 8);
+          chunks.push('    ' + slice.map(function(wd) { return '"' + wd.replace(/"/g, '\\"') + '"'; }).join(', '));
+        }
+
+        var isLast   = (i === listTAs.length - 1);
+        var arrBody  = chunks.length > 0 ? '\n' + chunks.join(',\n') + '\n  ' : '';
+        var trailing = isLast ? '' : ',';
+
+        lines.push('  ' + name + ': [' + arrBody + ']' + trailing);
+
+        if (!isLast) lines.push('');
+      }
+
+      lines.push('};');
+      lines.push('');
+      lines.push('/* Active list key -- changed by game mode selection */');
+      lines.push('var activeListKey = "' + (nameInputs[0].value.trim() || 'list1') + '";');
+      lines.push('');
+      lines.push('function getWordList(key) {');
+      lines.push('  return WORD_LISTS[key] || WORD_LISTS[Object.keys(WORD_LISTS)[0]] || [];');
+      lines.push('}');
+
+      if (!hasWords) {
+        setStatus('Paste some words first.', 'error');
+        return;
+      }
+
+      var output = lines.join('\n');
+      document.getElementById('output-code').textContent = output;
+      document.getElementById('output-block').classList.add('visible');
+      setStatus('Generated successfully.', 'success');
+
+      /* Store for download */
+      window._lastOutput = output;
+    });
+
+    /* ── Copy ─────────────────────────────────────────── */
+    document.getElementById('copy-btn').addEventListener('click', function() {
+      var text = document.getElementById('output-code').textContent;
+      if (!text) return;
+
+      /* Fallback for older Chrome */
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+          setStatus('Copied to clipboard.', 'success');
+        }).catch(function() {
+          fallbackCopy(text);
+        });
+      } else {
+        fallbackCopy(text);
+      }
+    });
+
+    function fallbackCopy(text) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity  = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        setStatus('Copied to clipboard.', 'success');
+      } catch(e) {
+        setStatus('Could not copy -- select the text manually.', 'error');
+      }
+      document.body.removeChild(ta);
+    }
+
+    /* ── Download ─────────────────────────────────────── */
+    document.getElementById('download-btn').addEventListener('click', function() {
+      if (!window._lastOutput) return;
+      var blob = new Blob([window._lastOutput], { type: 'text/javascript' });
+      var url  = URL.createObjectURL(blob);
+      var a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'wordlists.js';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+      setStatus('Downloaded wordlists.js', 'success');
+    });
+
+    /* ── Status ───────────────────────────────────────── */
+    function setStatus(msg, type) {
+      var el = document.getElementById('status');
+      el.textContent = msg;
+      el.className   = 'status status--' + type;
+    }
+  </script>
+</body>
+</html>
