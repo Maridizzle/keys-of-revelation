@@ -617,10 +617,10 @@ button {
 }
 
 /* ── Color Fill Animation ────────────────────────────── */
-/* The reveal overlay is a grey copy of the zone stacked on the
-   already-colored base image; it flickers away to expose the color.
-   Inverse of the old per-path colorFlicker (0.7 shown -> 0.3 here). */
-.reveal-overlay {
+/* Pooled canvas that shows the revealed zone in grey and flickers away
+   to expose the color painted beneath. One element, reused per reveal;
+   the animation is (re)started from JS. */
+.flicker-canvas {
   position: absolute;
   top: 0;
   left: 0;
@@ -628,7 +628,6 @@ button {
   height: 100%;
   pointer-events: none;
   will-change: opacity;
-  animation: greyFlickerOut 350ms ease forwards;
 }
 
 @keyframes greyFlickerOut {

@@ -13,11 +13,18 @@ var SVGEngine = (function() {
   var _filledCount = 0;      /* how many zones have been filled */
   var _canvasEl    = null;   /* the #svg-canvas container */
   var _zones       = {};     /* colorID → [{ el, p2d, fillRule }] built at load */
+  var _labels      = {};     /* colorID → [non-path label elements] */
   var _zoneCanvas  = null;   /* raster layer under the SVG holding all color */
   var _zoneCtx     = null;
+  var _flickerCanvas = null; /* pooled raster layer above the SVG for the blink */
+  var _flickerCtx    = null;
+  var _flickerHideTimer = null;
+  var _hasTransforms = false; /* any transform attrs in the SVG? */
   var _committed   = [];     /* [{ colorID, hex }] fills applied so far */
   var _svgCommitted = false; /* fills written back into the SVG element */
   var _resizeHandler = null;
+  var _perfHUD     = null;   /* ?perf=1 diagnostics */
+  var _perfLongTask = '-';
 
   /* ── Constants ────────────────────────────────────── */
   var UNFILLED_COLOR = '#d0d0d0';
@@ -35,8 +42,10 @@ var SVGEngine = (function() {
     _fillQueue    = [];
     _filledCount  = 0;
     _zones        = {};
+    _labels       = {};
     _committed    = [];
     _svgCommitted = false;
+    if (_flickerHideTimer) { clearTimeout(_flickerHideTimer); _flickerHideTimer = null; }
 
     /* Clear canvas */
     canvasEl.innerHTML = '';
@@ -77,11 +86,19 @@ var SVGEngine = (function() {
 
     for (var i = 0; i < allPaths.length; i++) {
       var cid = allPaths[i].getAttribute('metadata-colorID');
-      if (cid && !seen[cid]) {
+      if (!cid) continue;
+      if (!seen[cid]) {
         seen[cid] = true;
         ordered.push(cid);
       }
+      /* Non-path elements with a colorID are the zone's number labels */
+      if (allPaths[i].tagName.toLowerCase() !== 'path') {
+        if (!_labels[cid]) _labels[cid] = [];
+        _labels[cid].push(allPaths[i]);
+      }
     }
+
+    _hasTransforms = !!_svgEl.querySelector('[transform]');
 
     /* Sort numerically */
     ordered.sort(function(a, b) { return parseInt(a, 10) - parseInt(b, 10); });
@@ -103,7 +120,12 @@ var SVGEngine = (function() {
         var entry = { el: p, p2d: null, fillRule: 'nonzero' };
         try {
           entry.p2d = new Path2D(p.getAttribute('d') || '');
-          if (p.getAttribute('fill-rule') === 'evenodd') entry.fillRule = 'evenodd';
+          /* fill-rule may live in the style attribute (MimiPanda exports
+             declare style="...fill-rule:evenodd...") or as a presentation
+             attribute; canvas must honor it or compound cell paths smear
+             solid over their holes */
+          var fr = p.style.fillRule || p.getAttribute('fill-rule');
+          if (fr === 'evenodd') entry.fillRule = 'evenodd';
         } catch (e) { entry.p2d = null; }
         _zones[cid].push(entry);
       } else {
@@ -126,6 +148,17 @@ var SVGEngine = (function() {
 
     /* Inject SVG into canvas */
     canvasEl.appendChild(_svgEl);
+
+    /* Pooled flicker layer above the SVG -- reused for every reveal so
+       no DOM nodes are created or destroyed while typing */
+    _flickerCanvas = document.createElement('canvas');
+    _flickerCanvas.className = 'flicker-canvas';
+    _flickerCanvas.style.visibility = 'hidden';
+    _flickerCtx = _flickerCanvas.getContext('2d');
+    _flickerCanvas.addEventListener('animationend', hideFlicker);
+    canvasEl.appendChild(_flickerCanvas);
+
+    initPerfHUD();
 
     /* Size the raster layer and paint the grey underlay once the SVG is
        live (getScreenCTM needs a rendered element) */
@@ -151,6 +184,7 @@ var SVGEngine = (function() {
     var hex      = colorDef ? colorDef.hex  : '#888888';
     var name     = colorDef ? colorDef.name : 'Color ' + colorID;
 
+    var t0 = _perfHUD ? performance.now() : 0;
     var entries = _zones[colorID] || [];
 
     /* Paint the zone onto the raster layer. Canvas is immediate-mode:
@@ -158,13 +192,14 @@ var SVGEngine = (function() {
        is, and the vector scene above is never invalidated -- so the
        next word is typeable immediately. */
     _committed.push({ colorID: colorID, hex: hex });
-    paintZones(entries, hex);
+    paintZones(_zoneCtx, _zoneCanvas, entries, hex);
 
-    /* Flicker effect: a grey copy of the zone sits on top and blinks
-       away. Animating opacity on many SVG paths forces the browser to
-       repaint the entire image every animation frame; animating one
-       overlay element instead runs on the compositor for free. */
-    spawnRevealOverlay(entries);
+    /* Flicker effect: the pooled canvas above the SVG shows the zone in
+       grey and blinks away, exposing the color underneath. One opacity
+       animation on one element -- runs on the compositor for free. */
+    flickerZone(entries);
+
+    if (_perfHUD) updatePerfHUD(performance.now() - t0);
 
     _filledCount++;
 
@@ -182,28 +217,31 @@ var SVGEngine = (function() {
   }
 
   /* ── Zone Canvas Painting ─────────────────────────── */
-  function paintZones(entries, color) {
-    if (!_zoneCtx || !_zoneCanvas) return;
-    var rect = _zoneCanvas.getBoundingClientRect();
+  function paintZones(ctx, canvas, entries, color) {
+    if (!ctx || !canvas) return;
+    var rect = canvas.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) return;
     var dpr = window.devicePixelRatio || 1;
 
-    _zoneCtx.fillStyle = color;
+    /* getScreenCTM maps user units to client pixels, including viewBox
+       scaling and any ancestor transforms. Without transforms in the
+       document every path shares the root matrix -- compute it once. */
+    var shared = _hasTransforms ? null : (_svgEl && _svgEl.getScreenCTM());
+
+    ctx.fillStyle = color;
     for (var i = 0; i < entries.length; i++) {
       var entry = entries[i];
       if (!entry.p2d) continue;
-      /* getScreenCTM maps the path's user units to client pixels,
-         including viewBox scaling and any ancestor transforms */
-      var m = entry.el.getScreenCTM();
+      var m = shared || entry.el.getScreenCTM();
       if (!m) continue;
-      _zoneCtx.setTransform(m.a * dpr, m.b * dpr, m.c * dpr, m.d * dpr,
-                            (m.e - rect.left) * dpr, (m.f - rect.top) * dpr);
-      _zoneCtx.fill(entry.p2d, entry.fillRule);
+      ctx.setTransform(m.a * dpr, m.b * dpr, m.c * dpr, m.d * dpr,
+                       (m.e - rect.left) * dpr, (m.f - rect.top) * dpr);
+      ctx.fill(entry.p2d, entry.fillRule);
     }
-    _zoneCtx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  /* Resize canvas to its box, repaint grey underlay + all committed fills */
+  /* Resize canvases to their box, repaint grey underlay + committed fills */
   function redrawZoneCanvas() {
     if (!_zoneCanvas) return;
     var rect = _zoneCanvas.getBoundingClientRect();
@@ -211,15 +249,20 @@ var SVGEngine = (function() {
     var dpr = window.devicePixelRatio || 1;
     _zoneCanvas.width  = Math.round(rect.width * dpr);
     _zoneCanvas.height = Math.round(rect.height * dpr);
+    if (_flickerCanvas) {
+      _flickerCanvas.width  = _zoneCanvas.width;
+      _flickerCanvas.height = _zoneCanvas.height;
+      hideFlicker();
+    }
 
     var all = [];
     for (var cid in _zones) {
       if (_zones.hasOwnProperty(cid)) all = all.concat(_zones[cid]);
     }
-    paintZones(all, UNFILLED_COLOR);
+    paintZones(_zoneCtx, _zoneCanvas, all, UNFILLED_COLOR);
 
     for (var i = 0; i < _committed.length; i++) {
-      paintZones(_zones[_committed[i].colorID] || [], _committed[i].hex);
+      paintZones(_zoneCtx, _zoneCanvas, _zones[_committed[i].colorID] || [], _committed[i].hex);
     }
   }
 
@@ -250,43 +293,41 @@ var SVGEngine = (function() {
         el.style.opacity     = '1';
         el.style.fillOpacity = '1';
       }
+      /* Painted zones no longer need their number labels */
+      var labels = _labels[_committed[i].colorID] || [];
+      for (var t = 0; t < labels.length; t++) {
+        labels[t].style.display = 'none';
+      }
     }
   }
 
-  /* ── Reveal Overlay ───────────────────────────────── */
-  function spawnRevealOverlay(entries) {
-    if (!_canvasEl || !_svgEl || entries.length === 0) return;
+  /* ── Reveal Flicker ───────────────────────────────── */
+  function flickerZone(entries) {
+    if (!_flickerCanvas || !_flickerCtx || entries.length === 0) return;
 
-    var ns      = 'http://www.w3.org/2000/svg';
-    var overlay = document.createElementNS(ns, 'svg');
-    var viewBox = _svgEl.getAttribute('viewBox');
-    var par     = _svgEl.getAttribute('preserveAspectRatio');
+    /* If a previous flicker is still running, this simply takes over the
+       canvas -- the previous zone's color is already committed beneath */
+    _flickerCtx.setTransform(1, 0, 0, 1, 0, 0);
+    _flickerCtx.clearRect(0, 0, _flickerCanvas.width, _flickerCanvas.height);
+    paintZones(_flickerCtx, _flickerCanvas, entries, UNFILLED_COLOR);
 
-    if (viewBox) overlay.setAttribute('viewBox', viewBox);
-    if (par)     overlay.setAttribute('preserveAspectRatio', par);
-    overlay.setAttribute('class', 'reveal-overlay');
+    _flickerCanvas.style.visibility = 'visible';
+    _flickerCanvas.style.animation  = 'none';
+    /* restart the animation without forcing a synchronous reflow */
+    requestAnimationFrame(function() {
+      if (!_flickerCanvas) return;
+      _flickerCanvas.style.animation = 'greyFlickerOut 350ms ease forwards';
+    });
 
-    for (var i = 0; i < entries.length; i++) {
-      var clone = entries[i].el.cloneNode(true);
-      clone.style.fill = UNFILLED_COLOR;
-      /* neutralize any opacity baked into the source path so the grey
-         cover starts fully solid */
-      clone.style.opacity     = '1';
-      clone.style.fillOpacity = '1';
-      overlay.appendChild(clone);
-    }
-
-    _canvasEl.appendChild(overlay);
-
-    var removed = false;
-    function remove() {
-      if (removed) return;
-      removed = true;
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    }
-    overlay.addEventListener('animationend', remove);
+    if (_flickerHideTimer) clearTimeout(_flickerHideTimer);
     /* Fallback in case animationend never fires (tab hidden etc.) */
-    setTimeout(remove, 600);
+    _flickerHideTimer = setTimeout(hideFlicker, 600);
+  }
+
+  function hideFlicker() {
+    if (!_flickerCanvas) return;
+    _flickerCanvas.style.visibility = 'hidden';
+    _flickerCanvas.style.animation  = 'none';
   }
 
   /* ── Toast ────────────────────────────────────────── */
@@ -297,16 +338,41 @@ var SVGEngine = (function() {
     toast.textContent  = name;
     toast.style.color  = hex;
     toast.style.textShadow = '0 0 10px ' + hex;
-    toast.classList.remove('color-toast--visible');
 
-    /* Force reflow */
-    void toast.offsetWidth;
-    toast.classList.add('color-toast--visible');
+    /* Restart the transition without forcing a synchronous reflow */
+    toast.classList.remove('color-toast--visible');
+    requestAnimationFrame(function() {
+      toast.classList.add('color-toast--visible');
+    });
 
     clearTimeout(toast._hideTimer);
     toast._hideTimer = setTimeout(function() {
       toast.classList.remove('color-toast--visible');
     }, TOAST_DURATION);
+  }
+
+  /* ── Perf HUD (?perf=1) ───────────────────────────── */
+  function initPerfHUD() {
+    if (window.location.search.indexOf('perf=1') === -1 || _perfHUD) return;
+    _perfHUD = document.createElement('div');
+    _perfHUD.style.cssText = 'position:fixed;top:4px;left:4px;z-index:9999;'
+      + 'font:11px/1.5 monospace;color:#5f5;background:rgba(0,0,0,0.75);'
+      + 'padding:4px 8px;pointer-events:none;white-space:pre';
+    document.body.appendChild(_perfHUD);
+    updatePerfHUD(0);
+    try {
+      new PerformanceObserver(function(list) {
+        var es = list.getEntries();
+        var last = es[es.length - 1];
+        _perfLongTask = Math.round(last.duration) + 'ms @' + (last.startTime / 1000).toFixed(1) + 's';
+      }).observe({ entryTypes: ['longtask'] });
+    } catch (e) {}
+  }
+
+  function updatePerfHUD(revealMs) {
+    if (!_perfHUD) return;
+    _perfHUD.textContent = 'reveal js: ' + revealMs.toFixed(1) + 'ms\n'
+      + 'last long task: ' + _perfLongTask;
   }
 
   /* ── Progress Helpers ─────────────────────────────── */
