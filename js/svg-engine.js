@@ -112,16 +112,18 @@ var SVGEngine = (function() {
     /* Look up pre-cached paths for this colorID */
     var targets = _elementCache[colorID] || [];
 
+    /* Pass 1: set fill and clear animation on all targets (no reflow yet) */
     for (var i = 0; i < targets.length; i++) {
-      var el = targets[i];
+      targets[i].style.fill      = hex;
+      targets[i].style.animation = 'none';
+    }
 
-      /* Apply flicker animation */
-      el.style.fill       = hex;
-      el.style.animation  = 'none';
+    /* One forced reflow flushes the 'none' state for all elements at once */
+    if (targets.length > 0) void targets[0].offsetWidth;
 
-      /* Force reflow so animation restarts cleanly */
-      void el.offsetWidth;
-      el.style.animation  = 'colorFlicker 350ms ease forwards';
+    /* Pass 2: start animation on all targets */
+    for (var k = 0; k < targets.length; k++) {
+      targets[k].style.animation = 'colorFlicker 350ms ease forwards';
     }
 
     _filledCount++;
