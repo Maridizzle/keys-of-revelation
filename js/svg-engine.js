@@ -112,19 +112,18 @@ var SVGEngine = (function() {
     /* Look up pre-cached paths for this colorID */
     var targets = _elementCache[colorID] || [];
 
-    /* Pass 1: set fill and clear animation on all targets (no reflow yet) */
+    /* Commit real fills immediately -- the base SVG is always the
+       authoritative image state, so quitting mid-flicker or cloning
+       for the complete screen never captures a half-revealed zone. */
     for (var i = 0; i < targets.length; i++) {
-      targets[i].style.fill      = hex;
-      targets[i].style.animation = 'none';
+      targets[i].style.fill = hex;
     }
 
-    /* One forced reflow flushes the 'none' state for all elements at once */
-    if (targets.length > 0) void targets[0].offsetWidth;
-
-    /* Pass 2: start animation on all targets */
-    for (var k = 0; k < targets.length; k++) {
-      targets[k].style.animation = 'colorFlicker 350ms ease forwards';
-    }
+    /* Flicker effect: a grey copy of the zone sits on top and blinks
+       away. Animating opacity on many SVG paths forces the browser to
+       repaint the entire image every animation frame; animating one
+       overlay element instead runs on the compositor for free. */
+    spawnRevealOverlay(targets);
 
     _filledCount++;
 
@@ -139,6 +138,38 @@ var SVGEngine = (function() {
       total:        _fillQueue.length,
       complete:     _filledCount >= _fillQueue.length
     };
+  }
+
+  /* ── Reveal Overlay ───────────────────────────────── */
+  function spawnRevealOverlay(targets) {
+    if (!_canvasEl || !_svgEl || targets.length === 0) return;
+
+    var ns      = 'http://www.w3.org/2000/svg';
+    var overlay = document.createElementNS(ns, 'svg');
+    var viewBox = _svgEl.getAttribute('viewBox');
+    var par     = _svgEl.getAttribute('preserveAspectRatio');
+
+    if (viewBox) overlay.setAttribute('viewBox', viewBox);
+    if (par)     overlay.setAttribute('preserveAspectRatio', par);
+    overlay.setAttribute('class', 'reveal-overlay');
+
+    for (var i = 0; i < targets.length; i++) {
+      var clone = targets[i].cloneNode(true);
+      clone.style.fill = UNFILLED_COLOR;
+      overlay.appendChild(clone);
+    }
+
+    _canvasEl.appendChild(overlay);
+
+    var removed = false;
+    function remove() {
+      if (removed) return;
+      removed = true;
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+    overlay.addEventListener('animationend', remove);
+    /* Fallback in case animationend never fires (tab hidden etc.) */
+    setTimeout(remove, 600);
   }
 
   /* ── Toast ────────────────────────────────────────── */
