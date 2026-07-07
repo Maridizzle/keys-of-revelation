@@ -12,6 +12,7 @@ var SVGEngine = (function() {
   var _fillQueue   = [];     /* ordered array of colorIDs to fill */
   var _filledCount = 0;      /* how many zones have been filled */
   var _canvasEl    = null;   /* the #svg-canvas container */
+  var _elementCache = {};    /* colorID → [path elements] prebuilt at load time */
 
   /* ── Constants ────────────────────────────────────── */
   var UNFILLED_COLOR = '#d0d0d0';
@@ -19,10 +20,11 @@ var SVGEngine = (function() {
 
   /* ── Load Pack ────────────────────────────────────── */
   function loadPack(pack, canvasEl) {
-    _canvasEl    = canvasEl;
-    _colorMap    = pack.colorMap;
-    _fillQueue   = [];
-    _filledCount = 0;
+    _canvasEl     = canvasEl;
+    _colorMap     = pack.colorMap;
+    _fillQueue    = [];
+    _filledCount  = 0;
+    _elementCache = {};
 
     /* Clear canvas */
     canvasEl.innerHTML = '';
@@ -73,11 +75,17 @@ var SVGEngine = (function() {
     ordered.sort(function(a, b) { return parseInt(a, 10) - parseInt(b, 10); });
     _fillQueue = ordered;
 
-    /* Set all path fills to grey */
+    /* Set all path fills to grey and build element cache in one pass */
     var paths = _svgEl.querySelectorAll('path');
     for (var j = 0; j < paths.length; j++) {
-      paths[j].style.fill = UNFILLED_COLOR;
-      paths[j].style.transition = 'none';
+      var p   = paths[j];
+      p.style.fill       = UNFILLED_COLOR;
+      p.style.transition = 'none';
+      var cid = p.getAttribute('metadata-colorID');
+      if (cid) {
+        if (!_elementCache[cid]) _elementCache[cid] = [];
+        _elementCache[cid].push(p);
+      }
     }
 
     /* Inject SVG into canvas */
@@ -101,13 +109,11 @@ var SVGEngine = (function() {
     var hex      = colorDef ? colorDef.hex  : '#888888';
     var name     = colorDef ? colorDef.name : 'Color ' + colorID;
 
-    /* Find all paths with this colorID */
-    var targets = _svgEl.querySelectorAll('[metadata-colorID="' + colorID + '"]');
+    /* Look up pre-cached paths for this colorID */
+    var targets = _elementCache[colorID] || [];
 
     for (var i = 0; i < targets.length; i++) {
       var el = targets[i];
-      /* Only apply to path elements, not text labels */
-      if (el.tagName.toLowerCase() !== 'path') continue;
 
       /* Apply flicker animation */
       el.style.fill       = hex;
