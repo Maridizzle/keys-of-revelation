@@ -497,6 +497,20 @@ button {
   overflow: hidden;
   background: var(--bg);
   position: relative;
+  /* stacking context so the zone-canvas can sit under the SVG via z-index:-1 */
+  z-index: 0;
+}
+
+/* Raster layer holding the revealed colors; the SVG's line art renders
+   on top of it through its transparent zone fills */
+.zone-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .canvas-empty {
